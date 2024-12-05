@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Database Query Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align items to the top */
+            height: 100vh;
+        }
+        .container {
+            background-color: #794444;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            width: 100%;
+            max-width: 1350px;
+            margin-top: 20px; /* Add some margin from the top */
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .query-textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px; /* Add some space between the textarea and button */
+        }
+        .execute-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        .filter-input {
+            margin-bottom: 20px;
+            width: 50%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            position: relative;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+            font-size: 18px;
+            text-align: left;
+            background-color: blue; /* Set table background color to blue */
+        }
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            color: white; /* Text color to ensure readability */
+            height: auto;
+            width: auto;
+        }
+        th {
+            background-color: #0056b3;
+            cursor: pointer;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        tr {
+            height: auto;
+
+        }
+        th .header-content {
+            display: inline-flex;
+            align-items: center;
+        }
+        th .sort-icon {
+            margin-left: 5px;
+            font-size: 14px;
+        }
+        tr:hover {
+            background-color: #003f7f;
+        }
+    </style>
+    <!-- Include Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+<div class="container">
+    <h1>Database Query Tool</h1>
+    <form th:action="@{/execute}" method="post">
+        <textarea class="query-textarea" name="query" placeholder="Enter your query"></textarea>
+        <button type="submit" class="execute-button">Execute</button>
+    </form>
+
+    <!-- Filter input -->
+    <input type="text" id="filterInput" class="filter-input" onkeyup="filterTable()" placeholder="Filter results...">
+
+    <div class="table-container">
+        <table th:if="${results != null}" id="resultsTable">
+            <thead>
+            <tr>
+                <th th:each="column : ${columnNames}" onclick="sortTable(this)">
+                    <span class="header-content">
+                        <span th:text="${column}"></span>
+                        <i class="fas sort-icon" th:classappend="${sortedColumn == column ? (sortDirection == 'asc' ? 'fa-sort-up' : 'fa-sort-down') : 'fa-sort'}"></i>
+                    </span>
+                </th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${results}">
+                <td th:each="column : ${columnNames}">
+                    <span th:text="${#strings.toString(row.get(column)) ?: 'N/A'}"></span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    var currentSortColumn = null;
+    var currentSortDirection = 'asc';
+
+    // Function to filter table
+    function filterTable() {
+        var input, filter, table, tr, td, i, j, txtValue;
+        input = document.getElementById('filterInput');
+        filter = input.value.toUpperCase();
+        table = document.getElementById('resultsTable');
+        tr = table.getElementsByTagName('tr');
+        for (i = 1; i < tr.length; i++) {
+            tr[i].style.display = 'none';
+            td = tr[i].getElementsByTagName('td');
+            for (j = 0; j < td.length; j++) {
+                if (td[j]) {
+                    txtValue = td[j].textContent || td[j].innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = '';
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Function to sort table
+    function sortTable(th) {
+        var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+        table = th.closest('table');
+        switching = true;
+        dir = currentSortDirection === 'asc' ? 'desc' : 'asc'; // Toggle sort direction
+        currentSortColumn = th.cellIndex;
+        currentSortDirection = dir;
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+            for (i = 1; i < (rows.length - 1); i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName('TD')[currentSortColumn];
+                y = rows[i + 1].getElementsByTagName('TD')[currentSortColumn];
+                if (dir == 'asc') {
+                    if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                } else if (dir == 'desc') {
+                    if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+                switchcount++;
+            } else {
+                if (switchcount == 0 && dir == 'asc') {
+                    dir = 'desc';
+                    switching = true;
+                }
+            }
+        }
+        // Update sort icons
+        updateSortIcons();
+    }
+
+    function updateSortIcons() {
+        var headers = document.querySelectorAll('#resultsTable th');
+        headers.forEach(function(header, index) {
+            var icon = header.querySelector('.sort-icon');
+            if (icon) {
+                if (index === currentSortColumn) {
+                    icon.className = 'fas sort-icon ' + (currentSortDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down');
+                } else {
+                    icon.className = 'fas sort-icon fa-sort';
+                }
+            }
+        });
+    }
+</script>
+</body>
+</html>
